@@ -1,26 +1,62 @@
-import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { SupabaseService } from 'src/supabase/supabase.service';
 
 @Injectable()
 export class UsersService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+
+  constructor(private readonly supabaseService: SupabaseService){}
+
+  // sign Up 
+  async signUp(email: string, password: string, fullName?: string){
+    const { data, error } = await this.supabaseService.client.auth.signUp({
+      email,
+      password,
+    })
+
+    if (error) throw new Error(error.message);
+
+    if(fullName && data.user?.id){
+      await this.supabaseService.client
+      .from("profiles")
+      .insert({'id': data.user.id, email, full_name: fullName})
+    }
+
+    return data;
   }
 
-  findAll() {
-    return `This action returns all users`;
+
+  // sign In
+  async signIn(email: string, password: string){
+    const { data, error } = await this.supabaseService.client.auth.signInWithPassword({
+      email, 
+      password,
+    })
+
+    if(error) throw new Error (error.message);
+
+    return data; // contains access_token, refresh_token
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+
+
+  // get user profile
+  async getProfile(userId: string) {
+    const { data, error } = await this.supabaseService.client
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
-  }
+  async getProfileByToken(token: string) {
+    const { data: { user }, error } = await this.supabaseService.client.auth.getUser(token);
+    if (error || !user)
+      throw new UnauthorizedException('Invalid or expired token');
+    return this.getProfile(user.id);
+  } 
+
 }

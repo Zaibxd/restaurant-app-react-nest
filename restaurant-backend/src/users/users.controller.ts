@@ -1,34 +1,30 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Body, Controller, Get, Post, UnauthorizedException} from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { Headers as NestHeaders } from '@nestjs/common';
+
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+
+  @Post('signup')
+  async signUp(@Body() Body: {email: string, password: string, fullName?: string}){
+    return this.usersService.signUp(Body.email, Body.password, Body.fullName)
   }
 
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Post('signin')
+  async signIn(@Body() body: {email: string, password: string}){
+    return this.usersService.signIn(body.email, body.password)
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+  @Get('profile')
+  async getProfile(@NestHeaders('authorization') authHeader: string) {
+    
+    if (!authHeader) throw new UnauthorizedException('Authorization header missing');
+    const token = authHeader.replace('Bearer ', '').trim();
+
+    return this.usersService.getProfileByToken(token);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
-  }
 }
